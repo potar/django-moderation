@@ -136,20 +136,7 @@ class ModerationManager(with_metaclass(ModerationManagerSingleton, object)):
         Create a new moderation for the instance if it doesn't have any.
         If it does have a previous moderation, get that one
         """
-        # check if object was loaded from fixture, bypass moderation if so
-        if kwargs['raw']:
-            return
-
-        unchanged_obj = self._get_unchanged_object(instance)
-        moderator = self.get_moderator(sender)
-        if unchanged_obj:
-            moderated_obj = self._get_or_create_moderated_object(instance,
-                                                                 unchanged_obj,
-                                                                 moderator)
-            if moderated_obj.moderation_status != \
-               MODERATION_STATUS_APPROVED and \
-               not moderator.bypass_moderation_after_approval:
-                moderated_obj.save()
+        return
 
     def _get_unchanged_object(self, instance):
         if instance.pk is None:
@@ -240,7 +227,9 @@ class ModerationManager(with_metaclass(ModerationManagerSingleton, object)):
                moderator.bypass_moderation_after_approval:
                 return
 
-            if moderated_obj.has_object_been_changed(instance):
+            # TODO: move "has_m2m_relation_been_changed" into "has_object_been_changed".
+            # Pay attention that "has_object_been_changed" is called in other places.
+            if moderated_obj.has_object_been_changed(instance) or moderated_obj.has_m2m_relation_been_changed(instance):
                 copied_instance = self._copy_model_instance(instance)
 
                 if not moderator.visible_until_rejected:

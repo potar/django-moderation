@@ -49,8 +49,8 @@ class ModeratedObject(models.Model):
         default=MODERATION_STATUS_PENDING,
         editable=False)
     moderated_by = models.ForeignKey(
-        getattr(settings, 'AUTH_USER_MODEL', 'auth.User'), 
-        blank=True, null=True, editable=False, 
+        getattr(settings, 'AUTH_USER_MODEL', 'auth.User'),
+        blank=True, null=True, editable=False,
         related_name='moderated_by_set')
     moderation_date = models.DateTimeField(editable=False, blank=True,
                                            null=True)
@@ -58,8 +58,8 @@ class ModeratedObject(models.Model):
     changed_object = SerializedObjectField(serialize_format='json',
                                            editable=False)
     changed_by = models.ForeignKey(
-        getattr(settings, 'AUTH_USER_MODEL', 'auth.User'), 
-        blank=True, null=True, editable=True, 
+        getattr(settings, 'AUTH_USER_MODEL', 'auth.User'),
+        blank=True, null=True, editable=True,
         related_name='changed_by_set')
 
     objects = ModeratedObjectManager()
@@ -165,10 +165,16 @@ class ModeratedObject(models.Model):
                 setattr(self.changed_object, self.moderator.visibility_column,
                         True)
 
+            # Save m2m and serialize it
+            self.changed_object.codelists = self.m2m_data['codelists']
             self.save()
+
+            # Save other fields that were modified
             self.changed_object.save()
 
-        else:
+        elif status == MODERATION_STATUS_REJECTED:
+            # Sync a moderated object with the original one
+            self.changed_object = self.content_object
             self.save()
         if status == MODERATION_STATUS_REJECTED and\
            self.moderator.visible_until_rejected:
@@ -176,6 +182,13 @@ class ModeratedObject(models.Model):
 
         if self.changed_by:
             self.moderator.inform_user(self.content_object, self.changed_by)
+
+    def has_m2m_relation_been_changed(self, original_obj):
+        return set(
+            self.m2m_data['codelists']
+        ) != set(
+                map(str, original_obj.codelists.values_list('id', flat=True))
+        )
 
     def has_object_been_changed(self, original_obj, fields_exclude=None):
         if fields_exclude is None:

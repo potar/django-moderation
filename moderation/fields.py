@@ -52,7 +52,7 @@ class SerializedObjectField(models.TextField):
             value.encode(settings.DEFAULT_CHARSET),
             ignorenonexistent=True)
 
-        obj = next(obj_generator).object
+        result = next(obj_generator)
         for parent in obj_generator:
             for f in parent.object._meta.fields:
                 try:
@@ -64,7 +64,7 @@ class SerializedObjectField(models.TextField):
                     except ValueError:
                         # Return None for changed_object if None not allowed
                         return None
-        return obj
+        return result
 
     def db_type(self, connection=None):
         return 'text'
@@ -85,8 +85,9 @@ class SerializedObjectField(models.TextField):
                 value = self.value_from_object(kwargs['instance'])
 
                 if value:
-                    setattr(kwargs['instance'], self.attname,
-                            self._deserialize(value))
+                    data = self._deserialize(value)
+                    setattr(kwargs['instance'], self.attname, data.object)
+                    setattr(kwargs['instance'], 'm2m_data', data.m2m_data)
                 else:
                     setattr(kwargs['instance'], self.attname, None)
 
