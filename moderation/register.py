@@ -243,6 +243,13 @@ class ModerationManager(with_metaclass(ModerationManagerSingleton, object)):
                 moderated_obj.save()
                 moderator.inform_moderator(instance)
                 instance._moderated_object = moderated_obj
+            else:
+                # Make sure that changed object is the same as an instance.
+                # It helps us to keep a changed object up to date when
+                # fields that aren't under control of django-moderation packages
+                # are changed.
+                moderated_obj.changed_object = instance
+                moderated_obj.save()
 
     def _copy_model_instance(self, obj):
         initial = dict(
